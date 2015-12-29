@@ -1,0 +1,89 @@
+---
+title: "project report"
+output: html_document
+---
+
+First download the files and load relevant library
+```{r}
+library(caret)
+library(rpart)
+library(randomForest)
+
+set.seed(12345)
+trainingfile<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testingfile<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+df<-read.csv(trainingfile,header = T,na.strings = c("","NA","#DIV/0!"))
+```
+
+
+Partition the dataset into training and testing set. 
+```{r}
+inTrain<-createDataPartition(df$classe,p=0.8,list=F)
+training<-df[inTrain,]
+testing<-df[-inTrain,]
+```
+Quick look at the data
+```{r}
+summary(training)
+```
+
+There are many colnums with na values or values that are not relevant. Remove columns with na values and columnes that are not relevant. 
+
+```{r}
+nafilter<-!(colSums(is.na(training))>0) #& !colSums(training=="NA")>0
+
+training<-training[,nafilter]
+training<-training[-c(1,3,4,5)]
+
+testing<-testing[,nafilter]
+testing<-testing[-c(1,3,4,5)]
+```
+
+look at the dimmision with the data
+```{r}
+dim(training)
+```
+
+There are only 56 columnes reserved. 
+
+
+Firstly try a decion tree model, which hopefully will give some insights.
+
+```{r}
+
+model1<-rpart(classe~., data=training,method="class")
+rtrain<-predict(model1,newdata=training,type="class")
+confusionMatrix(rtrain,training$classe)
+rtest<-predict(model1,newdata=testing,type="class")
+confusionMatrix(rtest,testing$classe)
+```
+The results are pretty ugly even on the training set. try with a more complicated random forrest model.  
+```{r}
+#model2<-train(classe~., method="rf",data=training,tcControl=tc)
+print("random forest result#########")
+model2<-randomForest(classe~., data=training,ntree=2000)
+confusionMatrix(predict(model2,newdata=training),training$classe)
+confusionMatrix(predict(model2,newdata=testing),testing$classe)
+```
+
+results look promising and because it is random forrest, the expected out of sample result should be quite similar. load test data and make predicion. 
+```{r}
+va<-read.csv(testingfile,header=T)
+levels(va$new_window) <- levels(training$new_window)
+predictions<-predict(model2,newdata=va)
+
+answers<-as.character(predictions)
+
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+```
+pml_write_files(answers)
+
+
+
+
