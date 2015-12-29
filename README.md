@@ -1,1 +1,1 @@
-# practicalmachinelearning
+# course work for prctical machine learning
